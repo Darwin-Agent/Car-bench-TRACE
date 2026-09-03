@@ -1,0 +1,7 @@
+# Keep the skill definitions in the repository, but do not publish them as
+# Jekyll pages or copy them into the generated GitHub Pages site.
+exclude:
+  - skills_bank/
+  - skills_bank_v0/
+  - README.md
+  - README.zh-CN.md

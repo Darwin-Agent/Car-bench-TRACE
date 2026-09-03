@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "car-bench-ijcai"
+version = "0.1.0"
+description = "CAR-bench A2A evaluation harness"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "a2a-sdk[http-server]>=1.0.0",
+    "httpx>=0.28.1",
+    "loguru>=0.7.0",
+    "pydantic>=2.11.9",
+    "python-dotenv>=1.1.1",
+    "uvicorn>=0.35.0",
+]
+
+[project.optional-dependencies]
+track-1-agent = [
+    "google-adk>=1.14.1",
+    "google-genai>=1.36.0",
+    "litellm>=1.85.1",
+]
+skill-optimizer = [
+    "claude-agent-sdk>=0.2.134",
+    "tqdm>=4.67.0",
+]
+car-bench-evaluator = [
+    "nest-asyncio>=1.6.0",
+    "car-bench",
+]
+
+[project.scripts]
+car-bench-run = "agentbeats.run_scenario:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18.1",
+    "tomli-w>=1.0.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+car-bench = { path = "third_party/car-bench" }
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agentbeats"]

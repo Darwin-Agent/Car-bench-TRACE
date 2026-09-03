@@ -1,0 +1,25 @@
+# Local full test-set scenario for the baseline LiteLLM agent under test.
+
+[evaluator]
+endpoint = "http://127.0.0.1:18000"
+cmd = "python src/evaluator/server.py --host 127.0.0.1 --port 18000"
+
+[agent_under_test]
+endpoint = "http://127.0.0.1:18001"
+AGENT_THINKING = "true"
+AGENT_REASONING_EFFORT = "medium"
+cmd = "env CAR_BENCH_SKILLS_BANK_DIR=./skills_bank AGENT_LLM=xxx AGENT_API_MODE=responses python src/track_1_agent_under_test/server.py --host 127.0.0.1 --port 18001 --thinking --reasoning-effort medium"
+
+[config]
+experiment_name = "all-trials_3-medium"
+num_trials = 3
+task_split = "all"
+tasks_base_num_tasks = -1
+tasks_hallucination_num_tasks = -1
+tasks_disambiguation_num_tasks = -1
+max_steps = 50
+user_thinking = false
+user_model = "xxx"
+user_provider = "xxx"
+policy_evaluator_model = "xxx"
+policy_evaluator_provider = "xxx"

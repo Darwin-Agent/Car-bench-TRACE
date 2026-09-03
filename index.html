@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="TRACE: A self-evolving Skill Bank for consistent, limit-aware LLM agents on CAR-bench." />
+  <meta property="og:title" content="TRACE" />
+  <meta property="og:description" content="A self-evolving Skill Bank for consistent, limit-aware LLM agents." />
+  <meta property="og:image" content="assets/trace.png" />
+  <title>TRACE · CAR-bench Technical Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+  <style>
+    :root {
+      --accent: #ff6900;
+      --accent-soft: #fff0e6;
+      --ink: #121317;
+      --muted: #4b5563;
+      --line: #eceff3;
+      --panel: #ffffff;
+      --panel-soft: #f7f8fa;
+      --shadow: 0 24px 60px -36px rgba(18, 19, 23, 0.38);
+      --max-width: 1080px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: #fff;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.75;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: inherit; }
+
+    .page {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% -6%, rgba(255, 105, 0, 0.12), transparent 38rem),
+        linear-gradient(180deg, #fff 0%, #fff 54%, #fafafa 100%);
+    }
+
+    .navbar {
+      position: fixed;
+      z-index: 100;
+      inset: 0 0 auto;
+      height: 72px;
+      background: rgba(255, 255, 255, 0.88);
+      border-bottom: 1px solid rgba(236, 239, 243, 0.86);
+      backdrop-filter: blur(16px);
+    }
+
+    .navbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: min(var(--max-width), calc(100% - 32px));
+      height: 100%;
+      margin: 0 auto;
+    }
+
+    .brand {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      font-size: 1.35rem;
+      font-weight: 760;
+      letter-spacing: -0.035em;
+      text-decoration: none;
+    }
+
+    .brand span:first-child,
+    .title-accent { color: var(--accent); }
+
+    .nav-links {
+      display: flex;
+      gap: 22px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 620;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover { color: var(--ink); }
+
+    .side-nav {
+      position: fixed;
+      z-index: 80;
+      top: 50%;
+      left: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+      transform: translateY(-50%);
+    }
+
+    .side-nav a {
+      position: relative;
+      padding: 0.2rem 0 0.2rem 1rem;
+      color: #9ca3af;
+      font-size: 0.8rem;
+      font-weight: 560;
+      text-decoration: none;
+      transition: color 0.2s ease, transform 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .side-nav a::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #d1d5db;
+      transform: translateY(-50%);
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .side-nav a:hover,
+    .side-nav a.active { color: var(--accent); transform: translateX(2px); }
+    .side-nav a:hover::before,
+    .side-nav a.active::before { background: var(--accent); transform: translateY(-50%) scale(1.35); }
+
+    .hero {
+      width: min(960px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 150px 0 52px;
+      text-align: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 26px;
+      padding: 7px 14px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid rgba(255, 105, 0, 0.18);
+      border-radius: 999px;
+      font-size: 0.86rem;
+      font-weight: 680;
+      box-shadow: 0 16px 36px -24px rgba(255, 105, 0, 0.75);
+    }
+
+    h1 {
+      margin: 0 0 24px;
+      color: var(--ink);
+      font-size: clamp(2.4rem, 6.5vw, 4.6rem);
+      font-weight: 800;
+      line-height: 0.98;
+      letter-spacing: -0.065em;
+    }
+
+    .subtitle {
+      max-width: 820px;
+      margin: 0 auto 28px;
+      color: var(--ink);
+      font-size: clamp(1.08rem, 2vw, 1.35rem);
+      line-height: 1.75;
+      letter-spacing: 0.005em;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 18px;
+      margin-bottom: 34px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .meta.stacked {
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .meta .team-name {
+      color: var(--accent);
+      font-size: 1.12rem;
+      font-weight: 780;
+      letter-spacing: -0.01em;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 148px;
+      min-height: 46px;
+      padding: 0 22px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.86);
+      color: var(--ink);
+      font-weight: 720;
+      text-decoration: none;
+      box-shadow: 0 16px 38px -30px rgba(18, 19, 23, 0.55);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .button.primary {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 24px 52px -34px rgba(18, 19, 23, 0.65);
+      border-color: rgba(255, 105, 0, 0.38);
+    }
+
+    .banner {
+      width: min(1120px, calc(100% - 36px));
+      margin: 0 auto 72px;
+      padding: 26px;
+      overflow: hidden;
+      border: 1px solid rgba(236, 239, 243, 0.9);
+      border-radius: 28px;
+      background:
+        linear-gradient(135deg, rgba(255, 240, 230, 0.92), rgba(255, 255, 255, 0.96) 55%),
+        #f4f5f7;
+      box-shadow: var(--shadow);
+    }
+
+    .framework {
+      display: grid;
+      grid-template-columns: 1fr 1.12fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .framework-panel {
+      padding: 22px;
+      border: 1px solid rgba(255, 105, 0, 0.16);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.84);
+      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.28s ease;
+    }
+
+    .framework-panel:hover {
+      transform: translateY(-5px) scale(1.025);
+      border-color: rgba(255, 105, 0, 0.45);
+      box-shadow: 0 32px 64px -34px rgba(255, 105, 0, 0.5);
+    }
+
+    .framework-panel h3 {
+      margin: 0 0 12px;
+      color: var(--accent);
+      font-size: 0.9rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .framework-panel p {
+      margin: 0;
+      color: #3d4148;
+      font-size: 0.95rem;
+      line-height: 1.65;
+    }
+
+    .skill-bank {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .skill-bank span {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: var(--accent-soft);
+      color: #8a3a00;
+      font-size: 0.86rem;
+      font-weight: 680;
+    }
+
+    .connector {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100%;
+      color: var(--accent);
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+
+    section {
+      width: min(980px, calc(100% - 36px));
+      margin: 0 auto 76px;
+      scroll-margin-top: 96px;
+    }
+
+    .section-title {
+      margin: 0 0 26px;
+      font-size: clamp(1.8rem, 4vw, 2.55rem);
+      line-height: 1.18;
+      letter-spacing: -0.045em;
+    }
+
+    .lead {
+      margin: 0 0 24px;
+      color: #2d3036;
+      font-size: 1.08rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .grid.two-column { grid-template-columns: repeat(2, 1fr); }
+    .grid.three-column { grid-template-columns: repeat(3, 1fr); }
+
+    .card {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.84);
+      box-shadow: 0 18px 48px -40px rgba(18, 19, 23, 0.55);
+      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.28s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px) scale(1.025);
+      border-color: rgba(255, 105, 0, 0.45);
+      box-shadow: 0 32px 64px -34px rgba(255, 105, 0, 0.5);
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.65;
+    }
+
+    .card .tag {
+      display: inline-flex;
+      margin-bottom: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.76rem;
+      font-weight: 760;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .leaderboard {
+      margin-top: 28px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.84);
+      box-shadow: 0 18px 48px -40px rgba(18, 19, 23, 0.55);
+      overflow: hidden;
+    }
+
+    .leaderboard-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .leaderboard-head h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+
+    .leaderboard-head .source {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 560;
+    }
+
+    .leaderboard table {
+      width: 100%;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .leaderboard table { table-layout: fixed; }
+
+    .leaderboard th,
+    .leaderboard td {
+      padding: 11px 14px;
+      text-align: center;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .leaderboard th {
+      color: var(--muted);
+      font-weight: 680;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .leaderboard th:first-child,
+    .leaderboard td:first-child,
+    .leaderboard th:nth-child(2),
+    .leaderboard td:nth-child(2) { text-align: left; }
+
+    .leaderboard tbody tr:last-child td { border-bottom: none; }
+
+    .leaderboard tbody tr:hover { background: var(--accent-soft); }
+
+    .leaderboard td.model { font-weight: 680; }
+
+    .leaderboard .avg-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .leaderboard .avg-num {
+      font-weight: 760;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      min-width: 24px;
+      text-align: right;
+    }
+
+    .leaderboard .bar-track {
+      width: 90px;
+      height: 8px;
+      border-radius: 999px;
+      background: #eef1f5;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .leaderboard .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #ffb066 0%, var(--accent) 100%);
+    }
+
+    .module-list {
+      display: grid;
+      gap: 0;
+      margin-top: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: 0 18px 48px -42px rgba(18, 19, 23, 0.55);
+    }
+
+    .module-row {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .module-row:last-child { border-bottom: 0; }
+
+    .module-row > summary {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      cursor: pointer;
+      list-style: none;
+      transition: background 0.2s ease;
+    }
+    .module-row > summary::-webkit-details-marker { display: none; }
+    .module-row > summary:hover { background: rgba(255, 105, 0, 0.05); }
+
+    .module-row > summary strong {
+      flex: 0 0 150px;
+      color: var(--accent);
+      font-size: 0.95rem;
+      letter-spacing: -0.01em;
+    }
+
+    .module-row > summary .module-tag {
+      flex: 1;
+      color: var(--ink);
+      font-size: 0.98rem;
+      line-height: 1.5;
+    }
+
+    .module-row > summary .module-chev {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1;
+      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.2s ease;
+    }
+    .module-row[open] > summary .module-chev { transform: rotate(45deg); color: var(--accent); }
+
+    .module-detail {
+      padding: 0 24px 20px 188px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.65;
+      animation: module-reveal 0.3s ease;
+    }
+
+    .module-detail > p {
+      margin: 0 0 12px;
+      color: #3d4148;
+    }
+
+    .module-sub {
+      margin: 0;
+      display: grid;
+      gap: 9px;
+    }
+
+    .module-sub dt {
+      color: var(--ink);
+      font-size: 0.88rem;
+      font-weight: 680;
+      letter-spacing: -0.005em;
+    }
+
+    .module-sub dt::before {
+      content: "▸";
+      margin-right: 7px;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .module-sub dd {
+      margin: 2px 0 0 19px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    @keyframes module-reveal {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .trace {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin-top: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(135deg, var(--accent-soft), #fff 72%);
+    }
+
+    .trace-step {
+      position: relative;
+      flex: 1;
+      padding: 20px;
+    }
+
+    .trace-step::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background: linear-gradient(90deg, rgba(255, 105, 0, 0.18), rgba(255, 105, 0, 0.02));
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition: transform 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .trace-step:hover::before { transform: scaleX(1); }
+
+    .trace-step + .trace-step { border-left: 1px solid rgba(255, 105, 0, 0.16); }
+
+    .trace-step::after {
+      content: "→";
+      position: absolute;
+      top: 20px;
+      right: -8px;
+      z-index: 2;
+      color: var(--accent);
+      font-weight: 800;
+      transition: right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .trace-step:hover::after { right: -12px; transform: scale(1.15); }
+    .trace-step:last-child::after { content: none; }
+
+    .trace-step strong {
+      position: relative;
+      z-index: 1;
+      display: block;
+      margin-bottom: 8px;
+      color: var(--accent);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .trace-step span {
+      position: relative;
+      z-index: 1;
+      display: block;
+      color: #3d4148;
+      font-size: 0.94rem;
+      line-height: 1.58;
+      transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .trace-step:hover strong,
+    .trace-step:hover span { transform: translateX(4px); }
+
+    .figure-card {
+      overflow: hidden;
+      margin-top: 34px;
+      padding: 0;
+      border-radius: 18px;
+      background: transparent;
+    }
+
+    .figure-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+    }
+
+    .caption {
+      margin: 14px 0 2px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      text-align: center;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 26px;
+    }
+
+    .metric {
+      padding: 22px;
+      border-radius: 22px;
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+    }
+
+    .metric strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--accent);
+      font-size: 2rem;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .quote {
+      padding: 30px;
+      border-left: 4px solid var(--accent);
+      border-radius: 22px;
+      background: linear-gradient(135deg, var(--accent-soft), #fff 72%);
+      color: #2d3036;
+      font-size: 1.06rem;
+    }
+
+    .chart-card {
+      margin-top: 24px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.84);
+    }
+
+    .bar-chart {
+      display: grid;
+      gap: 14px;
+      margin-top: 6px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 168px 1fr 88px;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .bar-label {
+      color: #2d3036;
+      font-size: 0.93rem;
+      font-weight: 620;
+      white-space: nowrap;
+    }
+
+    .bar-label .mini-tag {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 6px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.68rem;
+      font-weight: 760;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+
+    .bar-track {
+      overflow: hidden;
+      height: 12px;
+      border-radius: 999px;
+      background: #edf1f5;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #ff8d3a 0%, var(--accent) 100%);
+      box-shadow: 0 10px 28px -20px rgba(255, 105, 0, 0.75);
+    }
+
+    .bar-value {
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    #hidden .chart-card {
+      padding: 20px;
+    }
+
+    .cmp-chart {
+      display: grid;
+      gap: 14px;
+      margin-top: 4px;
+    }
+
+    .cmp-group-label {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 5px;
+      color: #2d3036;
+      font-size: 0.9rem;
+      font-weight: 720;
+      letter-spacing: -0.005em;
+    }
+
+    .cmp-group-label .cmp-hint {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 560;
+    }
+
+    .cmp-bars {
+      display: grid;
+      gap: 0px;
+    }
+
+    .cmp-row {
+      display: grid;
+      grid-template-columns: 84px minmax(0, 1fr) 86px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .cmp-name {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 660;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Neutralize the global .trace container styling that leaks onto cmp-rows
+       (oval chip + border), and color the TRACE label in the accent orange. */
+    .cmp-row.trace {
+      border: 0;
+      border-radius: 0;
+      background: none;
+      overflow: visible;
+      margin-top: 0;
+    }
+
+    .cmp-row.trace .cmp-name {
+      color: var(--accent);
+    }
+
+    .cmp-track {
+      overflow: hidden;
+      height: 11px;
+      border-radius: 4px;
+      background: #edf1f5;
+    }
+
+    .cmp-fill {
+      height: 100%;
+      border-radius: 4px;
+    }
+
+    .cmp-row.baseline .cmp-fill {
+      background: linear-gradient(90deg, #77b7ff 0%, #2563eb 100%);
+      box-shadow: 0 8px 22px -18px rgba(37, 99, 235, 0.7);
+    }
+
+    .cmp-row.trace .cmp-fill {
+      background: linear-gradient(90deg, #ffb066 0%, var(--accent) 100%);
+      box-shadow: 0 8px 22px -18px rgba(255, 105, 0, 0.7);
+    }
+
+    .cmp-value {
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .cmp-row.trace.improved .cmp-value {
+      color: #16803c;
+      font-weight: 700;
+    }
+
+    .cmp-row.trace.regressed .cmp-value {
+      color: #dc2626;
+      font-weight: 700;
+    }
+
+    .lb-wrap {
+      overflow-x: auto;
+      margin: 0 -4px;
+      padding: 0 4px;
+    }
+
+    .lb-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums;
+      table-layout: fixed;
+    }
+
+    .lb-table th,
+    .lb-table td {
+      padding: 10px 6px;
+      text-align: center;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.86rem;
+      white-space: nowrap;
+    }
+
+    .lb-table th {
+      color: var(--muted);
+      font-weight: 680;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: normal;
+      line-height: 1.25;
+    }
+
+    .lb-table th:first-child,
+    .lb-table td:first-child,
+    .lb-table th:nth-child(2),
+    .lb-table td:nth-child(2) { text-align: left; }
+
+    .lb-table tbody tr:last-child td { border-bottom: none; }
+
+    .lb-table tbody tr:hover { background: var(--accent-soft); }
+
+    .lb-table .rank { color: var(--muted); font-weight: 660; }
+
+    .lb-table tr.ours {
+      background: rgba(255, 105, 0, 0.07);
+    }
+
+    .lb-table tr.ours td { border-bottom-color: rgba(255, 105, 0, 0.22); }
+
+    .lb-table .team { font-weight: 700; color: #2d3036; }
+    .lb-table tr.ours .team { color: var(--accent); }
+
+    .lb-table .ours-tag {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.6rem;
+      font-weight: 760;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+
+    .lb-table .num-best { font-weight: 720; color: var(--accent); }
+
+    .lb-table tr.ref {
+      background: repeating-linear-gradient(45deg, rgba(107, 114, 128, 0.05) 0 6px, transparent 6px 12px);
+    }
+
+    .lb-table tr.ref td { color: #6b7280; font-style: italic; }
+
+    .lb-table tr.ref td.team { font-style: normal; font-weight: 600; }
+
+    .lb-table .ref-tag {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      color: #4b5563;
+      font-size: 0.6rem;
+      font-style: normal;
+      font-weight: 760;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+
+    .full-results {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .lb-footnote {
+      margin: 14px 2px 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.6;
+    }
+
+    .lb-footnote strong { color: #3d4148; font-weight: 700; }
+
+    .result-notes {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .result-note {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .result-note strong { color: var(--ink); }
+
+    pre {
+      overflow-x: auto;
+      margin: 20px 0 0;
+      padding: 22px;
+      border-radius: 18px;
+      background: #111318;
+      color: #f6f7f9;
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    footer {
+      width: min(var(--max-width), calc(100% - 36px));
+      margin: 0 auto;
+      padding: 36px 0 54px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 1180px) {
+      .side-nav { display: none; }
+    }
+
+    @media (max-width: 860px) {
+      .nav-links { display: none; }
+      .hero { padding-top: 122px; }
+      .grid, .grid.two-column, .grid.three-column, .metrics, .framework, .result-notes { grid-template-columns: 1fr; }
+      .module-row > summary { flex-wrap: wrap; padding: 16px 18px; }
+      .module-row > summary strong { flex-basis: 100%; }
+      .module-detail { padding: 0 18px 18px; }
+      .trace { flex-direction: column; }
+      .trace-step + .trace-step { border-top: 1px solid rgba(255, 105, 0, 0.16); border-left: 0; }
+      .trace-step::after, .connector { display: none; }
+      .bar-row { grid-template-columns: 1fr; gap: 8px; }
+      .bar-value { text-align: left; }
+      .bar-label, .bar-value { white-space: normal; }
+      .cmp-row { grid-template-columns: 72px minmax(0, 1fr) 76px; gap: 8px; }
+      .lb-table th, .lb-table td { padding: 9px 6px; font-size: 0.78rem; }
+      .card, .metric, .quote, .trace-step, .framework-panel { padding: 20px; }
+      .figure-card img { height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <nav class="navbar" aria-label="Primary navigation">
+      <div class="navbar-inner">
+        <a class="brand" href="#top" aria-label="TRACE home"><span>TRACE</span><span>CAR-bench Challenge</span></a>
+        <div class="nav-links">
+          <a href="#overview">Overview</a>
+          <a href="#method">Method</a>
+          <a href="#hidden">Results</a>
+          <a href="#citation">Citation</a>
+        </div>
+      </div>
+    </nav>
+
+    <aside class="side-nav" aria-label="Section navigation">
+      <a href="#overview">Overview</a>
+      <a href="#method">Method</a>
+      <a href="#hidden">Results</a>
+      <a href="#citation">Citation</a>
+    </aside>
+
+    <header id="top" class="hero">
+      <div class="eyebrow">Technical Report · CAR-bench Challenge</div>
+      <h1><span class="title-accent">TRACE</span></h1>
+      <p class="subtitle">A Self-Evolving Skill Bank for Consistent, Limit-Aware LLM Agents</p>
+      <div class="meta stacked">
+        <span class="team-name"><strong>Darwin Agent Team</strong></span>
+        <span>Wenhao Wu, Menghao Zhang, Xin Wang, Zhi Wang, Kun Shao, Jian Luan</span>
+        <span>Xiaomi Inc. · Nanjing University · Tsinghua University</span>
+      </div>
+      <div class="actions">
+        <a class="button primary" href="https://arxiv.org/abs/2608.22793" target="_blank" rel="noopener noreferrer">Report</a>
+        <a class="button" href="https://github.com/Darwin-Agent/Car-bench-TRACE" target="_blank" rel="noopener noreferrer">Code</a>
+      </div>
+    </header>
+
+    <section id="leaderboard">
+      <p class="lead">On the official hidden-set evaluation, TRACE (Trajectory-Contrastive Evolution; team <strong>Darwin Agent</strong>) ranks 1st overall in <strong>Track 1 (Open Track)</strong>, where any LLM from any provider is permitted. TRACE leads on strict reliability, consistency, and latency while keeping cost competitive. The top entries are summarized below.</p>
+      <div class="chart-card">
+        <div class="lb-wrap">
+        <table class="lb-table">
+          <colgroup>
+            <col style="width:5%"><col style="width:12%"><col style="width:13%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:11%"><col style="width:10%"><col style="width:7%"><col style="width:8%"><col style="width:7%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Team</th>
+              <th>LLM used</th>
+              <th>Pass^3 ↓</th>
+              <th>Pass@3</th>
+              <th>Pass@1</th>
+              <th>Successful trials</th>
+              <th>Consistency</th>
+              <th>Latency</th>
+              <th>Tokens / trial</th>
+              <th>Cost / trial</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="ours">
+              <td class="rank">1</td>
+              <td class="team">Darwin Agent</td>
+              <td>GPT-5.6 Sol</td>
+              <td class="num-best">70.00%</td>
+              <td>83.33%</td>
+              <td>70.00%</td>
+              <td class="num-best">69/90</td>
+              <td class="num-best">88.00%</td>
+              <td class="num-best">25.87 s</td>
+              <td class="num-best">141,684</td>
+              <td>$0.27</td>
+            </tr>
+            <tr>
+              <td class="rank">2</td>
+              <td class="team">Thylinao</td>
+              <td>Gemini 3.5 Flash</td>
+              <td>66.67%</td>
+              <td class="num-best">86.67%</td>
+              <td>70.00%</td>
+              <td>67/90</td>
+              <td>78.85%</td>
+              <td>52.85 s</td>
+              <td>263,939</td>
+              <td>$0.24</td>
+            </tr>
+            <tr>
+              <td class="rank">3</td>
+              <td class="team">Xzlon</td>
+              <td>Gemini 3.5 Flash</td>
+              <td>63.33%</td>
+              <td>80.00%</td>
+              <td class="num-best">80.00%</td>
+              <td>66/90</td>
+              <td>87.50%</td>
+              <td>41.00 s</td>
+              <td>216,642</td>
+              <td class="num-best">$0.18</td>
+            </tr>
+            <tr>
+              <td class="rank">4–6</td>
+              <td class="team">10cars</td>
+              <td>Claude Opus 4.6</td>
+              <td>60.00%</td>
+              <td>80.00%</td>
+              <td>76.67%</td>
+              <td>65/90</td>
+              <td>85.42%</td>
+              <td>104.78 s</td>
+              <td>294,281</td>
+              <td>$0.56</td>
+            </tr>
+            <tr class="ref">
+              <td class="rank">—</td>
+              <td class="team">Organizer Baseline</td>
+              <td>GPT-5.6 Sol</td>
+              <td>50.00%</td>
+              <td>66.67%</td>
+              <td>60.00%</td>
+              <td>54/90</td>
+              <td>85.00%</td>
+              <td>21.21 s</td>
+              <td>82,179</td>
+              <td>$0.17</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="full-results">
+          <a class="button primary" href="https://car-bench.github.io/car-bench/leaderboard.html" target="_blank" rel="noopener noreferrer">Full Results →</a>
+        </div>
+      </div>
+      <p class="lb-footnote"><strong>Pass^3</strong> requires a task to be solved in <em>all three</em> repeated trials and measures <strong>reliability</strong> (consistency across runs); <strong>Pass@3</strong> requires it to be solved in <em>at least one</em> of the three and measures <strong>potential</strong> (best-case capability). Bold highlights the best result among the four competing teams.</p>
+    </section>
+
+    <section id="overview">
+      <h2 class="section-title">Reliable agents need more than raw task-solving ability.</h2>
+      <p class="lead">CAR-bench tests agents in the safety-critical reality of in-car assistants, where a user may issue incomplete, ambiguous, or unsatisfiable requests, and the agent must respond through multi-turn dialogue, tool use, and strict policy adherence. The benchmark targets two properties: <strong>consistency</strong>, producing stable behavior across repeated trials, and <strong>limit-awareness</strong>, recognizing when a request cannot, or cannot yet, be safely fulfilled instead of claiming unsupported success. Even frontier models show a substantial gap between what they can solve at least once and what they solve on every trial. TRACE is built to close that gap.</p>
+      <div class="grid">
+        <article class="card">
+          <h3>Policy adherence</h3>
+          <p>In-car assistants must follow domain policies even when compliance conflicts with completing the user request.</p>
+        </article>
+        <article class="card">
+          <h3>Limit-awareness</h3>
+          <p>Agents should recognize missing tools, parameters, results, or unsafe conditions instead of claiming unsupported success.</p>
+        </article>
+        <article class="card">
+          <h3>Clarification</h3>
+          <p>Agents should resolve ambiguity internally where possible and ask the user for clarification only when a request remains genuinely underspecified.</p>
+        </article>
+        <article class="card">
+          <h3>Consistency</h3>
+          <p>Agents should behave stably across repeated trials rather than succeed once and fail on the next run.</p>
+        </article>
+      </div>
+
+      <div class="leaderboard">
+        <div class="leaderboard-head">
+          <h3>Can You Beat the Frontier?</h3>
+          <span class="source">Baseline Pass^3 (%) across task types, using the default agent scaffold with no optimization.</span>
+        </div>
+        <table>
+          <colgroup>
+            <col style="width:22%"><col style="width:14%"><col style="width:12%"><col style="width:16%"><col style="width:18%"><col style="width:18%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Provider</th>
+              <th>Base</th>
+              <th>Hallucination</th>
+              <th>Disambiguation</th>
+              <th>Average</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="model">Claude Opus 4.6</td>
+              <td>Anthropic</td>
+              <td>80</td><td>48</td><td>46</td>
+              <td class="avg"><div class="avg-cell"><span class="avg-num">58</span><div class="bar-track"><div class="bar-fill" style="width:58%"></div></div></div></td>
+            </tr>
+            <tr>
+              <td class="model">GPT-5</td>
+              <td>OpenAI</td>
+              <td>66</td><td>60</td><td>36</td>
+              <td class="avg"><div class="avg-cell"><span class="avg-num">54</span><div class="bar-track"><div class="bar-fill" style="width:54%"></div></div></div></td>
+            </tr>
+            <tr>
+              <td class="model">Gemini 2.5 Pro</td>
+              <td>Google</td>
+              <td>53</td><td>34</td><td>28</td>
+              <td class="avg"><div class="avg-cell"><span class="avg-num">38</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div></div></td>
+            </tr>
+            <tr>
+              <td class="model">Qwen3-32B</td>
+              <td>Alibaba</td>
+              <td>45</td><td>27</td><td>22</td>
+              <td class="avg"><div class="avg-cell"><span class="avg-num">31</span><div class="bar-track"><div class="bar-fill" style="width:31%"></div></div></div></td>
+            </tr>
+            <tr>
+              <td class="model">xLAM-2-32B</td>
+              <td>Salesforce</td>
+              <td>26</td><td>11</td><td>12</td>
+              <td class="avg"><div class="avg-cell"><span class="avg-num">16</span><div class="bar-track"><div class="bar-fill" style="width:16%"></div></div></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="method">
+      <h2 class="section-title">TRACE turns existing model capability into consistent, limit-aware behavior.</h2>
+      <div class="figure-card">
+        <a href="assets/trace.png" target="_blank" rel="noopener noreferrer">
+          <img src="assets/trace.png" alt="Overview of the TRACE framework: the evolution loop refines the Skill Bank; the deployed Actor performs state-conditioned skill orchestration at every turn." />
+        </a>
+        <p class="caption">Overview of TRACE: the evolution loop refines the Skill Bank; the deployed Actor performs state-conditioned skill orchestration at every turn.</p>
+      </div>
+      <p class="lead">Rather than modifying model weights, TRACE improves the behavioral knowledge that an agent acts on. It couples an evolution loop — where the Curator bootstraps and iteratively refines a Skill Bank from the Actor's evaluation trajectories — with lightweight per-turn state-conditioned skill orchestration at deployment, where the Actor activates only the relevant skills to guide each turn.</p>
+      <div class="module-list">
+        <details class="module-row">
+          <summary><strong>Initialization</strong><span class="module-tag">Bootstrap an initial bank from the Actor's evaluation trajectories.</span><span class="module-chev" aria-hidden="true">+</span></summary>
+          <div class="module-detail">
+            <p>A bottom-up pipeline abstracts task-specific experience into reusable, precisely retrievable competencies, \(\mathcal{B}^{\text{task}} \to \mathcal{B}^{\text{type}} \to \mathcal{B}^{\text{op}} \to \mathcal{B}^{(0)}\):</p>
+            <dl class="module-sub">
+              <dt>Task-level distillation</dt><dd>For each task, compare its trajectories across rounds and distill a skill capturing both successful behaviors and common failure patterns.</dd>
+              <dt>Type-level aggregation</dt><dd>Group tasks by type and merge their skills, stripping task-specific wording so only behavior shared within each type remains.</dd>
+              <dt>Operation-level abstraction</dt><dd>Merge skills across types by their underlying operation, unifying shared behavior even from tasks with different surface goals.</dd>
+              <dt>Skill decomposition</dt><dd>Split broad skills into single-competency ones, so the Actor can activate precisely the knowledge a turn needs rather than overlapping guidance.</dd>
+            </dl>
+          </div>
+        </details>
+        <details class="module-row">
+          <summary><strong>Evolution loop</strong><span class="module-tag">Refine the bank each round by contrasting successful and failed trajectories.</span><span class="module-chev" aria-hidden="true">+</span></summary>
+          <div class="module-detail">
+            <p>Each round applies one update \(\mathcal{B}^{(r+1)} = \Phi(\mathcal{B}^{(r)}, \mathcal{T}^{(r)})\) in three steps, corresponding to the four steps below:</p>
+            <dl class="module-sub">
+              <dt>Skill-aware grouping</dt><dd>Partition trajectories by the skill each turn selected; set aside those with an unrecognized or no skill to mine missing competencies.</dd>
+              <dt>Deployment-faithful reconstruction</dt><dd>Render each trajectory as structured text that separates deployment-visible information from evidence available only to the Curator during evolution, so a skill is never rewritten to depend on knowledge the Actor will not have during deployment.</dd>
+              <dt>Contrastive refinement</dt><dd>Edit existing skills from paired success and failure trajectories, split overly broad ones, and mine new skills from the set-aside cases when a reusable pattern recurs.</dd>
+            </dl>
+          </div>
+        </details>
+        <details class="module-row">
+          <summary><strong>Deployment</strong><span class="module-tag">Orchestrate the relevant skills per turn — relevance, count, and order — and recompute on the next.</span><span class="module-chev" aria-hidden="true">+</span></summary>
+          <div class="module-detail">
+            <p>Orchestration goes beyond static retrieval: conditioned on the current dialogue state, the Actor jointly determines which skills are relevant, how many to activate, and in what order to compose them, then grounds the sequence in context and recomputes it after every turn.</p>
+            <dl class="module-sub">
+              <dt>State-conditioned orchestration</dt><dd>Each turn, the Actor evaluates the skill descriptions against the current dialogue history to build an ordered sequence, conditioned on the user's request, unresolved constraints, and observations rather than surface similarity alone.</dd>
+              <dt>Context grounding</dt><dd>The selected bodies — tool-use rules, behavioral guidelines, and mistakes to avoid — are arranged in context in the chosen order, shaping both what the Actor should do and what it should avoid.</dd>
+              <dt>Per-turn re-orchestration</dt><dd>Orchestration is recomputed each turn, independent of the previous one; injected bodies are not carried over, so the active competencies track the conversation as it evolves.</dd>
+            </dl>
+          </div>
+        </details>
+      </div>
+      <p class="lead" style="margin-top: 12px;"></p>Within each round of the evolution loop, the Actor produces trajectories and the Curator refines the bank in four steps, from grouping trajectories by the skill each turn invoked to rewriting skills by contrasting successful and failed behaviors.</p>
+      <div class="trace">
+        <div class="trace-step"><strong>Evaluate</strong><span>Run the Actor with the current Skill Bank and collect multi-turn trajectories with rewards, tool calls, and errors.</span></div>
+        <div class="trace-step"><strong>Group</strong><span>Partition trajectories by the skill invoked at each turn, while setting aside no-skill cases to mine missing competencies.</span></div>
+        <div class="trace-step"><strong>Contrast</strong><span>Compare successes and failures under deployment-faithful evidence to identify decisions that separate reliable runs.</span></div>
+        <div class="trace-step"><strong>Rewrite</strong><span>Edit skills from paired success and failure trajectories, split overly broad ones, and mine missing competencies.</span></div>
+      </div>
+    </section>
+
+    <!-- <section id="results">
+      <h2 class="section-title">TRACE closes the gap between potential and reliable performance.</h2>
+      <p class="lead">On the full CAR-bench dataset, TRACE improves strict three-trial reliability while also raising potential performance. The gains transfer from a Skill Bank evolved on GPT-5.5 trajectories to GLM-5.2 without changing the bank.</p>
+      <div class="metrics">
+        <div class="metric"><strong>94.5%</strong><span>GPT-5.5 TRACE Pass^3, up from 59.9% baseline.</span></div>
+        <div class="metric"><strong>98.5%</strong><span>GPT-5.5 TRACE Pass@3 potential performance.</span></div>
+        <div class="metric"><strong>4.0 pts</strong><span>GPT-5.5 Pass@3-to-Pass^3 reliability gap after TRACE.</span></div>
+        <div class="metric"><strong>84.8%</strong><span>GLM-5.2 TRACE Pass^3, up from 62.8% baseline.</span></div>
+      </div>
+      <div class="chart-card">
+        <div class="bar-chart">
+          <div class="bar-row"><span class="bar-label">GPT-5.5 baseline <span class="mini-tag">Pass^3</span></span><div class="bar-track"><div class="bar-fill" style="width: 59.9%"></div></div><span class="bar-value">59.9%</span></div>
+          <div class="bar-row"><span class="bar-label">GPT-5.5 TRACE <span class="mini-tag">Pass^3</span></span><div class="bar-track"><div class="bar-fill" style="width: 94.5%"></div></div><span class="bar-value">94.5%</span></div>
+          <div class="bar-row"><span class="bar-label">GLM-5.2 baseline <span class="mini-tag">Pass^3</span></span><div class="bar-track"><div class="bar-fill" style="width: 62.8%"></div></div><span class="bar-value">62.8%</span></div>
+          <div class="bar-row"><span class="bar-label">GLM-5.2 TRACE <span class="mini-tag">Pass^3</span></span><div class="bar-track"><div class="bar-fill" style="width: 84.8%"></div></div><span class="bar-value">84.8%</span></div>
+        </div>
+      </div>
+      <div class="result-notes">
+        <div class="result-note">On GPT-5.5, TRACE improves Pass^3 by 34.6 points and reduces the potential-to-reliable gap from 27.8 to 4.0 points.</div>
+        <div class="result-note">The largest task-type gain is on GPT-5.5 disambiguation: Pass^3 rises from 39.3% to 94.6%.</div>
+      </div>
+    </section> -->
+
+    <section id="hidden">
+      <h2 class="section-title">Official hidden-set evaluation.</h2>
+      <p class="lead">The official evaluation tests submitted systems on a previously unseen hidden set, distinct from the combined training and test splits. Over 30 hidden tasks under the same GPT-5.6-Sol backbone, with three trials per task, TRACE raises strict three-trial reliability (Pass^3) from <strong>50.0% to 70.0%</strong> (<strong>+40.0%</strong> relative) and successful trials from <strong>54/90 to 69/90</strong>, while consistency improves from <strong>85.0% to 88.0%</strong>. These gains come at only moderate overhead: median latency rises <strong>22.0%</strong> (21.21 → 25.87 s), far below the <strong>40.0%</strong> relative reliability gain.</p>
+      <div class="chart-card">
+        <div class="cmp-chart">
+          <div class="cmp-group">
+            <div class="cmp-group-label">Pass^3 <span class="cmp-hint">higher is better</span></div>
+            <div class="cmp-bars">
+              <div class="cmp-row baseline"><span class="cmp-name">Baseline</span><div class="cmp-track"><div class="cmp-fill" style="width:50%"></div></div><span class="cmp-value">50.0%</span></div>
+              <div class="cmp-row trace improved"><span class="cmp-name">TRACE</span><div class="cmp-track"><div class="cmp-fill" style="width:70%"></div></div><span class="cmp-value">70.0%</span></div>
+            </div>
+          </div>
+          <div class="cmp-group">
+            <div class="cmp-group-label">Pass@3 <span class="cmp-hint">higher is better</span></div>
+            <div class="cmp-bars">
+              <div class="cmp-row baseline"><span class="cmp-name">Baseline</span><div class="cmp-track"><div class="cmp-fill" style="width:66.7%"></div></div><span class="cmp-value">66.7%</span></div>
+              <div class="cmp-row trace improved"><span class="cmp-name">TRACE</span><div class="cmp-track"><div class="cmp-fill" style="width:83.3%"></div></div><span class="cmp-value">83.3%</span></div>
+            </div>
+          </div>
+          <div class="cmp-group">
+            <div class="cmp-group-label">Pass@1 <span class="cmp-hint">higher is better</span></div>
+            <div class="cmp-bars">
+              <div class="cmp-row baseline"><span class="cmp-name">Baseline</span><div class="cmp-track"><div class="cmp-fill" style="width:60%"></div></div><span class="cmp-value">60.0%</span></div>
+              <div class="cmp-row trace improved"><span class="cmp-name">TRACE</span><div class="cmp-track"><div class="cmp-fill" style="width:70%"></div></div><span class="cmp-value">70.0%</span></div>
+            </div>
+          </div>
+          <div class="cmp-group">
+            <div class="cmp-group-label">Successful trials <span class="cmp-hint">higher is better</span></div>
+            <div class="cmp-bars">
+              <div class="cmp-row baseline"><span class="cmp-name">Baseline</span><div class="cmp-track"><div class="cmp-fill" style="width:60%"></div></div><span class="cmp-value">54/90</span></div>
+              <div class="cmp-row trace improved"><span class="cmp-name">TRACE</span><div class="cmp-track"><div class="cmp-fill" style="width:76.7%"></div></div><span class="cmp-value">69/90</span></div>
+            </div>
+          </div>
+          <div class="cmp-group">
+            <div class="cmp-group-label">Consistency <span class="cmp-hint">higher is better</span></div>
+            <div class="cmp-bars">
+              <div class="cmp-row baseline"><span class="cmp-name">Baseline</span><div class="cmp-track"><div class="cmp-fill" style="width:85%"></div></div><span class="cmp-value">85.0%</span></div>
+              <div class="cmp-row trace improved"><span class="cmp-name">TRACE</span><div class="cmp-track"><div class="cmp-fill" style="width:88%"></div></div><span class="cmp-value">88.0%</span></div>
+            </div>
+          </div>
+          <div class="cmp-group">
+            <div class="cmp-group-label">Latency<span class="cmp-hint">lower is better</span></div>
+            <div class="cmp-bars">
+              <div class="cmp-row baseline"><span class="cmp-name">Baseline</span><div class="cmp-track"><div class="cmp-fill" style="width:82%"></div></div><span class="cmp-value">21.21 s</span></div>
+              <div class="cmp-row trace regressed"><span class="cmp-name">TRACE</span><div class="cmp-track"><div class="cmp-fill" style="width:100%"></div></div><span class="cmp-value">25.87 s</span></div>
+            </div>
+          </div>
+          <div class="cmp-group">
+            <div class="cmp-group-label">Tokens / trial <span class="cmp-hint">lower is better</span></div>
+            <div class="cmp-bars">
+              <div class="cmp-row baseline"><span class="cmp-name">Baseline</span><div class="cmp-track"><div class="cmp-fill" style="width:58%"></div></div><span class="cmp-value">82,179</span></div>
+              <div class="cmp-row trace regressed"><span class="cmp-name">TRACE</span><div class="cmp-track"><div class="cmp-fill" style="width:100%"></div></div><span class="cmp-value">141,684</span></div>
+            </div>
+          </div>
+          <div class="cmp-group">
+            <div class="cmp-group-label">Cost / trial <span class="cmp-hint">lower is better</span></div>
+            <div class="cmp-bars">
+              <div class="cmp-row baseline"><span class="cmp-name">Baseline</span><div class="cmp-track"><div class="cmp-fill" style="width:63%"></div></div><span class="cmp-value">$0.17</span></div>
+              <div class="cmp-row trace regressed"><span class="cmp-name">TRACE</span><div class="cmp-track"><div class="cmp-fill" style="width:100%"></div></div><span class="cmp-value">$0.27</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="result-notes">
+        <div class="result-note"><strong>Reliability & generalization.</strong> TRACE lifts Pass^3 from 50.0% to 70.0% (+20.0 pts, +40.0% relative), with Pass@3 +16.6 and Pass@1 +10.0; it completes 69/90 trials (15 more than the baseline) and raises consistency from 85.0% to 88.0%. As these tasks were unseen during skill evolution, the gains indicate the Skill Bank transfers beyond the public set rather than memorizing it.</div>
+        <div class="result-note"><strong>Latency–accuracy trade-off.</strong> The 40.0% relative reliability gain far exceeds the 22.0% latency increase (+4.66 s), so per-turn state-conditioned skill orchestration adds only moderate wall-clock overhead. Cost rises more sharply (+58.8% per trial), making it the main target for future work: how to retrieve and use skills more economically so that reliability gains come at lower monetary cost.</div>
+      </div>
+    </section>
+
+    <section id="citation">
+      <h2 class="section-title">Citation.</h2>
+      <p class="lead">If this paper is useful for your research, please cite TRACE.</p>
+      <pre><code>@article{wu2026trace,
+  title   = {{TRACE}: A Self-Evolving Skill Bank for Consistent, Limit-Aware {LLM} Agents},
+  author  = {Wenhao Wu and Menghao Zhang and Xin Wang and Zhi Wang and Kun Shao and Jian Luan},
+  year    = {2026},
+  journal = {arXiv preprint arXiv:2608.22793}
+}</code></pre>
+    </section>
+
+    <footer>
+      <span>© 2026 Darwin Agent Team, Xiaomi.</span>
+      <span> Released as a project introduction page for the CAR-bench technical report.</span>
+    </footer>
+  </main>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous" onload="renderMathInElement(document.body, { delimiters: [ { left: '$$', right: '$$', display: true }, { left: '\\[', right: '\\]', display: true }, { left: '\\(', right: '\\)', display: false } ], throwOnError: false });"></script>
+  <script>
+    const sections = [...document.querySelectorAll('section[id]')];
+    const links = [...document.querySelectorAll('.side-nav a')];
+
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+      if (!visible) return;
+
+      links.forEach((link) => {
+        link.classList.toggle('active', link.getAttribute('href') === `#${visible.target.id}`);
+      });
+    }, { rootMargin: '-25% 0px -55% 0px', threshold: [0.1, 0.3, 0.6] });
+
+    sections.forEach((section) => observer.observe(section));
+  </script>
+</body>
+</html>
